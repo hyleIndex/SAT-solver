@@ -57,25 +57,37 @@ findVariable (BigOr f) = case f of
                            [] -> Nothing
                            x : xs -> Just (var x)
 
+findSingleLit :: [Cls] -> Maybe Lit
+findSingleLit [] = Nothing
+findSingleLit (y : ys) = case (length (literals y)) of
+                           1 -> Just ((literals y)!!0)
+                           otherwise -> findSingleLit ys
+
 solve :: [Cls] -> Subst -> Maybe Subst
 solve [] s = Just []
-solve (x : xs) s = case findVariable x of
-                    Nothing -> Nothing
-                    Just v -> case (condition (Lit v True) (x : xs)) of
-                                Nothing -> Just (s ++ [(v , True)])
+solve (x : xs) s = case findSingleLit (x : xs) of
+                     Nothing -> case findVariable x of
+                                  Nothing -> Nothing
+                                  Just v -> case (condition (Lit v True) (x : xs)) of
+                                              Nothing -> Just (s ++ [(v , True)])
+                                              Just k -> case k of
+                                                          [] -> case (condition (Lit v False) (x : xs)) of
+                                                                  Nothing -> Just (s ++ [(v , False)])
+                                                                  Just k -> case k of
+                                                                              [] -> Nothing
+                                                                              y : ys -> solve (y : ys) (s ++ [(v , False)])
+                                                          y : ys -> case (solve (y : ys) (s ++ [(v , True)])) of
+                                                                      Nothing -> case (condition (Lit v False) (x : xs)) of
+                                                                                   Nothing -> Just (s ++ [(v , False)])
+                                                                                   Just k -> case k of
+                                                                                               [] -> Nothing
+                                                                                               z : zs -> solve (z : zs) (s ++ [(v , False)])
+                                                                      Just s -> Just s
+                     Just v -> case (condition (v) (x : xs)) of
+                                Nothing -> Just (s ++ [(var v , pol v)])
                                 Just k -> case k of
-                                            [] -> case (condition (Lit v False) (x : xs)) of
-                                                    Nothing -> Just (s ++ [(v , False)])
-                                                    Just k -> case k of
-                                                                [] -> Nothing
-                                                                y : ys -> solve (y : ys) (s ++ [(v , False)])
-                                            y : ys -> case (solve (y : ys) (s ++ [(v , True)])) of
-                                                        Nothing -> case (condition (Lit v False) (x : xs)) of
-                                                                     Nothing -> Just (s ++ [(v , False)])
-                                                                     Just k -> case k of
-                                                                                 [] -> Nothing
-                                                                                 z : zs -> solve (z : zs) (s ++ [(v , False)])
-                                                        Just s -> Just s
+                                            [] -> Nothing
+                                            y : ys -> solve (y : ys) (s ++ [(var v , pol v)])
 
 getVarFromSubst :: Subst -> [Var]
 getVarFromSubst [] = []
