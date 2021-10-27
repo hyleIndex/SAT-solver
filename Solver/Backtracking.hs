@@ -93,9 +93,24 @@ getVarFromSubst :: Subst -> [Var]
 getVarFromSubst [] = []
 getVarFromSubst (x : xs) = [fst x] ++ (getVarFromSubst xs)
 
+contain :: [Lit] -> [Lit] ->  Bool
+contain [] y = True
+contain (x : xs) y = (x `elem` y) && (contain xs y)
+
+containC :: Cls -> [Cls] -> Bool
+containC (BigOr x) [] = False
+containC (BigOr x) (y : ys) = (contain (literals y) x) || (containC (BigOr x) ys)
+
+-- if Cls1 \in Cls2 then we can delete Cls2
+cancelImply :: [Cls] -> [Cls] -> [Cls]
+cancelImply [] s = []
+cancelImply (x : xs) s = case (containC x xs) of
+                                True -> cancelImply (xs) s
+                                False -> cancelImply (xs) (s ++ [x])
+
 solution :: CNF -> Maybe Subst
 solution f = case (solve fc []) of
                 Nothing -> Nothing
                 Just s -> Just (s ++ (giveSub ((vars f) \\ (getVarFromSubst s))))
     where
-        fc = clauses f
+        fc = cancelImply (clauses f) []
