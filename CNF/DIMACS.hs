@@ -2,8 +2,6 @@ module CNF.DIMACS (readCNFfromDIMACS, writeCNFtoDIMACS, dimacsSubst) where
 
 import CNF
 
-import CNF.Problems
-
 import Data.List
 import System.IO
 

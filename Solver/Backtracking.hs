@@ -19,6 +19,10 @@ test3 = [BigOr [Lit 3 False], BigOr [Lit 3 True]]
 
 test4 = [BigOr [Lit 1 True, Lit 2 True], BigOr [Lit 1 False, Lit 2 False]]
 
+opp :: Lit -> Lit
+opp (Lit v True) = Lit v False
+opp (Lit v False) = Lit v True
+
 fstL :: Lit -> Var
 fstL (Lit var pol) = var
 
@@ -57,10 +61,21 @@ condition v (x : xs) = case varInCls v [] x of
               z : zs -> Just (k : (z : zs), lit)
         )
 
-findVariable :: Cls -> Maybe Var
+findVariable :: Cls -> Maybe Lit
 findVariable (BigOr f) = case f of
   [] -> Nothing
-  x : _ -> Just (var x)
+  x : _ -> Just x
+
+mostCommon :: [Lit] -> Lit
+mostCommon s = snd $maximum [([1 | y <- s, y == x], x) | x <- s]
+
+findVariableHeu :: [Cls] -> Maybe Lit
+findVariableHeu cls = findVariableHeuAux (litFrm cls)
+  where
+    findVariableHeuAux :: [Lit] -> Maybe Lit
+    findVariableHeuAux lits = case lits of
+      [] -> Nothing
+      l : lits -> Just (mostCommon (l : lits))
 
 findSingleLit :: [Cls] -> Maybe Lit
 findSingleLit [] = Nothing
@@ -82,39 +97,39 @@ findPureLit cls = findPureLitAux (litFrm cls)
 solve :: [Cls] -> Subst -> Maybe Lit -> Maybe Subst
 solve [] s _ = Just []
 solve (x : xs) s (Just single) = case condition single (x : xs) of
-  Nothing -> Just ((var single, pol single) : s)
+  Nothing -> Just (unLit single : s)
   Just (k, new_single) -> case k of
     [] -> Nothing
-    y : ys -> solve (y : ys) ((var single, pol single) : s) new_single
+    y : ys -> solve (y : ys) (unLit single : s) new_single
 solve (x : xs) s Nothing = case findPureLit (x : xs) of
   Nothing -> case findVariable x of
     Nothing -> Nothing
-    Just v -> case condition (Lit v True) (x : xs) of
-      Nothing -> Just ((v, True) : s)
+    Just v -> case condition v (x : xs) of
+      Nothing -> Just (unLit v : s)
       Just (k, new_single) -> case k of
-        [] -> case condition (Lit v False) (x : xs) of
-          Nothing -> Just ((v, False) : s)
+        [] -> case condition (opp v) (x : xs) of
+          Nothing -> Just (unLit (opp v) : s)
           Just (k, new_single1) -> case k of
             [] -> Nothing
-            y : ys -> solve (y : ys) ((v, False) : s) new_single1
-        y : ys -> case solve (y : ys) ((v, True) : s) new_single of
-          Nothing -> case condition (Lit v False) (x : xs) of
-            Nothing -> Just (s ++ [(v, False)])
+            y : ys -> solve (y : ys) (unLit (opp v) : s) new_single1
+        y : ys -> case solve (y : ys) (unLit v : s) new_single of
+          Nothing -> case condition (opp v) (x : xs) of
+            Nothing -> Just (unLit (opp v) : s)
             Just (k, new_single1) -> case k of
               [] -> Nothing
-              z : zs -> solve (z : zs) ((v, False) : s) new_single1
+              z : zs -> solve (z : zs) (unLit (opp v) : s) new_single1
           Just s -> Just s
   Just l -> case condition l (x : xs) of
-    Nothing -> Just ((var l, pol l) : s)
+    Nothing -> Just (unLit l : s)
     Just (k, new_single) -> case k of
       [] -> Nothing
-      y : ys -> solve (y : ys) ((var l, pol l) : s) new_single
+      y : ys -> solve (y : ys) (unLit l : s) new_single
 
 getVarFromSubst :: Subst -> [Var]
 getVarFromSubst = map fst
 
 contain :: [Lit] -> [Lit] -> Bool
-contain xs y = foldr (\x -> (&&) (x `elem` y)) True xs
+contain xs = foldr (\y -> (&&) (y `elem` xs)) True
 
 containC :: [Lit] -> [Cls] -> Bool
 containC x = foldr ((||) . contain x . literals) False
@@ -129,4 +144,8 @@ solution f = case solve fc [] (findSingleLit (clauses f)) of
   Nothing -> Nothing
   Just s -> Just (s ++ giveSub (vars f \\ getVarFromSubst s))
   where
-    fc = cancelImply (clauses f)
+    -- fc = sortBy (\e1 e2 -> compare (length (literals e1)) (length (literals e2))) (clauses f)
+    fc = sortBy (\e1 e2 -> compare (length (literals e2)) (length (literals e1))) (clauses f)
+
+-- fc = cancelImply (clauses f) -- slowing down
+--fc = clauses f
