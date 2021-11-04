@@ -132,7 +132,7 @@ contain :: [Lit] -> [Lit] -> Bool
 contain xs = foldr (\y -> (&&) (y `elem` xs)) True
 
 containC :: [Lit] -> [Cls] -> Bool
-containC x = foldr ((||) . contain x . literals) False
+containC x = foldr ((||) . (\y -> contain y x) . literals) False
 
 -- if Cls1 \in Cls2 then we can delete Cls2
 cancelImply :: [Cls] -> [Cls]
