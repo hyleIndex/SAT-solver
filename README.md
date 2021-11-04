@@ -60,7 +60,7 @@ which confirms if provided solution is indeed a correct solution of the given fo
 
 Function **`solution`** represents the main function of the Module. For the given CNF it returns `Nothing` if formula is not SAT or solution which can satisfy the given formula.
 
-The function **`solution`** calls **`solve`** which checks the formula for SAT. As arguments it takes `fc` which is a descending sorted the array of clauses by length, an empty array which is an accumulator for the solution, and a Maybe Lit which forms a single clause (unit clause). We will discuss in more detail while we decide to take descending sorted the array of clauses by length instead of other options in the following section.
+The function **`solution`** calls **`solve`** which checks the formula for SAT. As arguments it takes `fc` which is a descending sorted the array of clauses by length, an empty array which is an accumulator for the solution, and a Maybe Lit which forms a single clause (unit clause). We will discuss in more detail why we decide to take descending sorted the array of clauses by length instead of other options in the following section.
 
 It is also important to mention that we if needed we perform a completion for missing variables in function `solution` giving them all true polarization (see **`giveSub`**).
 
